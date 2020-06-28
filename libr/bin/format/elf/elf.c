@@ -1728,6 +1728,7 @@ ut64 Elf_(r_bin_elf_get_boffset)(ELFOBJ *bin) {
 
 	size_t i;
 	for (i = 0; i < bin->ehdr.e_phnum; i++) {
+		size_t i;
 		if (bin->phdr[i].p_type == PT_LOAD) {
 			tmp = (ut64)bin->phdr[i].p_offset & ELF_PAGE_MASK;
 			tmp = tmp - (tmp % (1 << ELF_PAGE_SIZE));
@@ -1821,6 +1822,7 @@ ut64 Elf_(r_bin_elf_get_main_offset)(ELFOBJ *bin) {
 		return UT64_MAX;
 	}
 	// unnecessary to read 512 bytes imho
+	ut8 buf[256];
 	if (r_buf_read_at (bin->b, entry, buf, sizeof (buf)) < 1) {
 		bprintf ("read (main)\n");
 		return UT64_MAX;
@@ -2609,8 +2611,9 @@ static bool has_valid_section_header(ELFOBJ *bin, size_t pos) {
 
 static void fix_rva_and_offset_relocable_file(ELFOBJ *bin, RBinElfReloc *r, size_t pos) {
 	if (has_valid_section_header (bin, pos)) {
-		r->rva = bin->shdr[bin->g_sections[pos].info].sh_offset + r->offset;
-		r->rva = Elf_(r_bin_elf_p2v) (bin, r->rva);
+		ut64 pa = bin->shdr[bin->g_sections[pos].info].sh_offset + r->offset;
+		r->offset = pa;
+		r->rva = Elf_(r_bin_elf_p2v_new) (bin, pa);
 	} else {
 		r->rva = r->offset;
 	}
@@ -2881,10 +2884,9 @@ RBinElfLib* Elf_(r_bin_elf_get_libs)(ELFOBJ *bin) {
 }
 
 static void create_section_from_phdr(ELFOBJ *bin, RBinElfSection *ret, size_t *i, const char *name, ut64 addr, ut64 sz) {
-	if (!addr) {
+	if (addr == UT64_MAX) {
 		return;
 	}
-
 	ret[*i].offset = Elf_(r_bin_elf_v2p_new) (bin, addr);
 	ret[*i].rva = addr;
 	ret[*i].size = sz;
@@ -3869,7 +3871,7 @@ ut64 Elf_(r_bin_elf_p2v) (ELFOBJ *bin, ut64 paddr) {
 
 /* Deprecated temporarily. Use r_bin_elf_v2p_new in new code for now. */
 ut64 Elf_(r_bin_elf_v2p) (ELFOBJ *bin, ut64 vaddr) {
-	r_return_val_if_fail (bin, 0);
+	r_return_val_if_fail (bin, 0); // UT64_MAX or vaddr?
 	if (!bin->phdr) {
 		if (is_bin_etrel (bin)) {
 			return vaddr - bin->baddr;
