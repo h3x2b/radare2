@@ -43,6 +43,8 @@ Show when a package was installed or exit 1 if pkg does not exist
 .Pp
 Initialize and update the package database
 .Pp
+  $ export R2PM_DBDIR="$HOME/.local/share/radare2/r2pm/db"
+  $ mkdir -p "$R2PM_DBDIR"
   $ r2pm init
   $ r2pm update
 .Pp
